@@ -1,0 +1,12 @@
+.ipy
+.project
+.idea
+.git/
+build/
+dist/
+doc/build
+migrations/
+*.pyc
+*.swp
+*.*~
+lsync/

@@ -1,0 +1,60 @@
+#!/usr/bin/env python
+
+import ipdb
+import argparse
+
+from cosmos                import session
+from cosmos.Workflow       import cli
+from cosmos.lib.ezflow.dag import DAG,configure,add_run
+
+from genomekey.settings            import settings      as genomekey_settings
+from genomekey.workflows.pipeline  import CteamPipeline
+
+###############################
+# bam
+###############################
+
+def bam(workflow,input_bam,input_bam_list,**kwargs):
+    """
+    Input file is a bam with properly annotated readgroups.
+
+    """
+    input_bams = input_bam_list.read().strip().split('\n') if input_bam_list else []
+    if input_bam:
+        input_bams.append(input_bam.name)
+
+    if len(input_bams) == 0:
+        raise WorkflowException, 'At least 1 BAM input required'
+
+    dag = DAG(ignore_stage_name_collisions=True)
+
+    dag.sequence_(
+        CteamPipeline(input_bams),
+        configure(genomekey_settings),
+        add_run(workflow)
+    )
+    
+###############################
+# CLI Configuration
+###############################
+
+def main():
+
+    session.drmaa_spec = genomekey_settings['drmaa_spec']
+
+    parser = argparse.ArgumentParser(description='WGA')
+    subparsers = parser.add_subparsers(title="Commands", metavar="<command>")
+
+    bam_sp = subparsers.add_parser('bam',help="Input is a bam or bam file list",description=bam.__doc__)
+    cli.add_workflow_args(bam_sp)
+    bam_sp.add_argument('-i', '--input_bam',     type=file,help='A path to a BAM file')
+    bam_sp.add_argument('-il','--input_bam_list',type=file,help='A path to a file containing a list of paths to BAMs, separated by newlines')
+    bam_sp.set_defaults(func=bam)
+
+    wf,kwargs = cli.parse_args(parser)
+    kwargs['func'](wf,**kwargs)
+
+
+if __name__ == '__main__':
+    with ipdb.launch_ipdb_on_exception():    
+        main()
